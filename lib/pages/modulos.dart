@@ -314,31 +314,147 @@ class _ModulosState extends State<Modulos> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: ClipRRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  width: ui.cardWidth * 0.20,
-                  height: ui.cardHeight * 0.25,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.15),
-
-                    border: Border.all(
-                      color: Colors.black.withValues(alpha: 0.20),
-                      width: 1,
-                    ),
+            child: Container(
+              height: ui.cardHeight * 0.30,
+              decoration: BoxDecoration(
+                color: BillhardColors.bege,
+                border: Border(
+                  top: BorderSide(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    width: 1,
                   ),
                 ),
               ),
-            ),
-            /*Container(
-              width: double.infinity,
-              height: ui.cardHeight * 0.28,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                //borderRadius: BorderRadius.circular(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  InkWell(
+                    onTap: () {
+                      print('click');
+                    },
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 30,
+                            height: 30,
+                            child: Image.asset(
+                              'assets/icon/PNG/billhard-live-1.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Modulos',
+                            style: TextStyle(
+                              fontSize: ui.titleSize * 0.25,
+                              fontWeight: FontWeight.w700,
+                              color: BillhardColors.verdePrincipal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  InkWell(
+                    onTap: () {
+                      print('click');
+                    },
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 30,
+                            height: 30,
+                            child: Image.asset(
+                              'assets/icon/PNG/billhard-qrcode.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Provisionar',
+                            style: TextStyle(
+                              fontSize: ui.titleSize * 0.25,
+                              fontWeight: FontWeight.w700,
+                              color: BillhardColors.verdePrincipal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  InkWell(
+                    onTap: () {
+                      print('click');
+                    },
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 30,
+                            height: 30,
+                            child: Image.asset(
+                              'assets/icon/PNG/billhard-suporte-1.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Suporte',
+                            style: TextStyle(
+                              fontSize: ui.titleSize * 0.25,
+                              fontWeight: FontWeight.w700,
+                              color: BillhardColors.verdePrincipal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  InkWell(
+                    onTap: () {
+                      print('click');
+                    },
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 30,
+                            height: 30,
+                            child: Image.asset(
+                              'assets/icon/PNG/billhard-usuario-1.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Conta',
+                            style: TextStyle(
+                              fontSize: ui.titleSize * 0.25,
+                              fontWeight: FontWeight.w700,
+                              color: BillhardColors.verdePrincipal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),*/
+            ),
           ),
         ],
       ),
