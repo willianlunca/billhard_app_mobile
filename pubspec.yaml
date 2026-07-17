@@ -1,0 +1,63 @@
+name: billhard_app_mobile
+description: "A new Flutter project."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_localizations:
+    sdk: flutter
+
+  flutter_carplay: ^1.6.3
+  cupertino_icons: ^1.0.8
+
+  fl_chart: ^0.69.0
+  supabase_flutter: ^2.10.0
+  lottie: ^3.1.2
+  flutter_native_splash: ^2.4.1
+  video_player: ^2.9.1
+  image_picker: ^1.1.2
+  crop_your_image: ^1.1.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  path_provider: ^2.1.5
+  intl: any
+  custom_refresh_indicator: ^4.0.1
+  pull_to_refresh: ^2.0.0
+  mqtt_client: ^10.5.1
+  device_info_plus: 12.2.0
+  flutter_local_notifications: ^17.2.4
+  flutter_background_service: ^5.0.10
+  flutter_background_service_android: ^6.2.7
+  permission_handler: ^11.3.1
+  push: ^3.3.3
+  google_fonts: ^8.1.0
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
+  rename: ^3.1.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon_billhard.png"
+  remove_alpha_ios: true
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icon/icon_billhard.png
+    - assets/animations/
+    - assets/logo/

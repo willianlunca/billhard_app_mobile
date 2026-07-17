@@ -1,0 +1,41 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# macOS
+.DS_Store
+
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS e macOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+macos/Pods/
+macos/.symlinks/
+macos/Flutter/ephemeral/
+
+# Linux e Windows
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# Imagens que você pediu para não enviar
+/assets/icon/*.png
+/assets/icon/*.svg
+/assets/icon/PNG/*.png
+/assets/icon/SVG/*.svg
