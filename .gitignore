@@ -38,4 +38,4 @@ windows/flutter/ephemeral/
 #/assets/icon/*.png
 #/assets/icon/*.svg
 #/assets/icon/PNG/*.png
-/assets/icon/SVG/*.svg
+#/assets/icon/SVG/*.svg
