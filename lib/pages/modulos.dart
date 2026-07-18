@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:billhard_app_mobile/colors/colors.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
 import 'package:billhard_app_mobile/utils/responsive.dart';
+import 'package:billhard_app_mobile/pages/conta.dart';
 
 class Modulos extends StatefulWidget {
   const Modulos({super.key});
@@ -329,126 +330,169 @@ class _ModulosState extends State<Modulos> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  InkWell(
-                    onTap: () {
-                      print('click');
-                    },
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 30,
-                            height: 30,
-                            child: Image.asset(
-                              'assets/icon/PNG/billhard-live-1.png',
-                              fit: BoxFit.contain,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      splashColor: BillhardColors.verdePrincipal.withOpacity(
+                        0.20,
+                      ),
+                      highlightColor: Colors.transparent,
+                      onTap: () {
+                        print('click');
+                      },
+                      child: SizedBox(
+                        width: 90,
+                        height: 90,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 30,
+                              height: 30,
+                              child: Image.asset(
+                                'assets/icon/PNG/billhard-live-1.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Modulos',
-                            style: TextStyle(
-                              fontSize: ui.titleSize * 0.25,
-                              fontWeight: FontWeight.w700,
-                              color: BillhardColors.verdePrincipal,
+                            const SizedBox(height: 6),
+                            Text(
+                              'Modulos',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: ui.titleSize * 0.25,
+                                fontWeight: FontWeight.w700,
+                                color: BillhardColors.verdePrincipal,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                  InkWell(
-                    onTap: () {
-                      print('click');
-                    },
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 30,
-                            height: 30,
-                            child: Image.asset(
-                              'assets/icon/PNG/billhard-qrcode.png',
-                              fit: BoxFit.contain,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      splashColor: BillhardColors.verdePrincipal.withOpacity(
+                        0.20,
+                      ),
+                      highlightColor: Colors.transparent,
+                      onTap: () {
+                        print('click');
+                      },
+                      child: SizedBox(
+                        width: 90,
+                        height: 90,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 30,
+                              height: 30,
+                              child: Image.asset(
+                                'assets/icon/PNG/billhard-qrcode.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Provisionar',
-                            style: TextStyle(
-                              fontSize: ui.titleSize * 0.25,
-                              fontWeight: FontWeight.w700,
-                              color: BillhardColors.verdePrincipal,
+                            const SizedBox(height: 6),
+                            Text(
+                              'Provisionar',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: ui.titleSize * 0.25,
+                                fontWeight: FontWeight.w700,
+                                color: BillhardColors.verdePrincipal,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                  InkWell(
-                    onTap: () {
-                      print('click');
-                    },
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 30,
-                            height: 30,
-                            child: Image.asset(
-                              'assets/icon/PNG/billhard-suporte-1.png',
-                              fit: BoxFit.contain,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      splashColor: BillhardColors.verdePrincipal.withOpacity(
+                        0.20,
+                      ),
+                      highlightColor: Colors.transparent,
+                      onTap: () {
+                        print('click');
+                      },
+                      child: SizedBox(
+                        width: 90,
+                        height: 90,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 30,
+                              height: 30,
+                              child: Image.asset(
+                                'assets/icon/PNG/billhard-suporte-1.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Suporte',
-                            style: TextStyle(
-                              fontSize: ui.titleSize * 0.25,
-                              fontWeight: FontWeight.w700,
-                              color: BillhardColors.verdePrincipal,
+                            const SizedBox(height: 6),
+                            Text(
+                              'Suporte',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: ui.titleSize * 0.25,
+                                fontWeight: FontWeight.w700,
+                                color: BillhardColors.verdePrincipal,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
 
-                  InkWell(
-                    onTap: () {
-                      print('click');
-                    },
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 30,
-                            height: 30,
-                            child: Image.asset(
-                              'assets/icon/PNG/billhard-usuario-1.png',
-                              fit: BoxFit.contain,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      splashColor: BillhardColors.verdePrincipal.withOpacity(
+                        0.20,
+                      ),
+                      highlightColor: Colors.transparent,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const Conta()),
+                        );
+                      },
+                      child: SizedBox(
+                        width: 90,
+                        height: 90,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 30,
+                              height: 30,
+                              child: Image.asset(
+                                'assets/icon/PNG/billhard-usuario-1.png',
+                                fit: BoxFit.contain,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Conta',
-                            style: TextStyle(
-                              fontSize: ui.titleSize * 0.25,
-                              fontWeight: FontWeight.w700,
-                              color: BillhardColors.verdePrincipal,
+                            const SizedBox(height: 6),
+                            Text(
+                              'Conta',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: ui.titleSize * 0.25,
+                                fontWeight: FontWeight.w700,
+                                color: BillhardColors.verdePrincipal,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),

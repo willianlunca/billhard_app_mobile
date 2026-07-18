@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:billhard_app_mobile/pages/modulos.dart';
 import 'package:billhard_app_mobile/pages/equipamentos.dart';
 import 'package:billhard_app_mobile/pages/login.dart';
+import 'package:billhard_app_mobile/pages/conta.dart';
 import 'package:billhard_app_mobile/pages/novo_usuario.dart';
 import 'package:billhard_app_mobile/pages/recupera_senha.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
@@ -47,6 +48,7 @@ class _AuthCheckState extends State<AuthCheck> {
       'Novousuario': const Novousuario(),
       'RecuperaSenha': const RecuperaSenha(),
       'Modulos': const Modulos(),
+      'Conta': const Conta(),
     };
 
     setState(() {
