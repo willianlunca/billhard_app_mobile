@@ -9,6 +9,7 @@ import 'package:billhard_app_mobile/pages/login.dart';
 import 'package:billhard_app_mobile/pages/conta.dart';
 import 'package:billhard_app_mobile/pages/novo_usuario.dart';
 import 'package:billhard_app_mobile/pages/recupera_senha.dart';
+import 'package:billhard_app_mobile/pages/completar_perfil.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
 import 'package:lottie/lottie.dart';
 
@@ -28,18 +29,86 @@ class _AuthCheckState extends State<AuthCheck> {
     verificarLogin();
   }
 
+  Future<bool> perfilEstaCompleto() async {
+    final usuario = Supabase.instance.client.auth.currentUser;
+
+    if (usuario == null) {
+      return false;
+    }
+
+    final perfil = await Supabase.instance.client
+        .from('perfis')
+        .select('''
+        nome,
+        cpf,
+        telefone,
+        data_nascimento,
+        cep,
+        estado,
+        cidade,
+        endereco,
+        numero,
+        bairro
+      ''')
+        .eq('id', usuario.id)
+        .maybeSingle();
+
+    if (perfil == null) {
+      return false;
+    }
+
+    bool preenchido(dynamic valor) {
+      if (valor == null) return false;
+
+      if (valor is String) {
+        return valor.trim().isNotEmpty;
+      }
+
+      return true;
+    }
+
+    return preenchido(perfil['nome']) &&
+        preenchido(perfil['cpf']) &&
+        preenchido(perfil['telefone']) &&
+        preenchido(perfil['data_nascimento']) &&
+        preenchido(perfil['cep']) &&
+        preenchido(perfil['estado']) &&
+        preenchido(perfil['cidade']) &&
+        preenchido(perfil['endereco']) &&
+        preenchido(perfil['numero']) &&
+        preenchido(perfil['bairro']);
+  }
+
   Future<void> verificarLogin() async {
     await Future.delayed(const Duration(seconds: 2));
 
     final session = Supabase.instance.client.auth.currentSession;
 
-    //await PaginaPersistenteService.salvarPagina('Novousuario');
+    if (session == null) {
+      if (!mounted) return;
 
-    final String paginaSalva = await PaginaPersistenteService.obterPagina();
+      setState(() {
+        destino = const Login();
+      });
+
+      return;
+    }
+
+    final perfilCompleto = await perfilEstaCompleto();
 
     if (!mounted) {
       return;
     }
+
+    if (!perfilCompleto) {
+      setState(() {
+        destino = const CompletarPerfil();
+      });
+
+      return;
+    }
+
+    final String paginaSalva = await PaginaPersistenteService.obterPagina();
 
     final Map<String, Widget> paginas = {
       'Modulos': const Modulos(),
@@ -47,22 +116,15 @@ class _AuthCheckState extends State<AuthCheck> {
       'Login': const Login(),
       'Novousuario': const Novousuario(),
       'RecuperaSenha': const RecuperaSenha(),
-      'Modulos': const Modulos(),
       'Conta': const Conta(),
     };
 
     setState(() {
-      if (session == null) {
-        destino = const Login();
-        return;
-      }
-
       if (paginaSalva.isEmpty || !paginas.containsKey(paginaSalva)) {
         destino = const Modulos();
-        return;
+      } else {
+        destino = paginas[paginaSalva]!;
       }
-
-      destino = paginas[paginaSalva]!;
     });
   }
 

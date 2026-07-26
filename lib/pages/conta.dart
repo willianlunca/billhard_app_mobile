@@ -9,9 +9,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:billhard_app_mobile/colors/colors.dart';
 import 'package:billhard_app_mobile/pages/login.dart';
 import 'package:billhard_app_mobile/services/cep_service.dart';
+import 'package:billhard_app_mobile/services/documento_validator.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/utils/perfil_input_formatters.dart';
+import 'package:billhard_app_mobile/utils/seletor_data_nascimento.dart';
 import 'package:billhard_app_mobile/utils/responsive.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class Conta extends StatefulWidget {
   const Conta({super.key});
@@ -20,173 +24,9 @@ class Conta extends StatefulWidget {
   State<Conta> createState() => _ContaState();
 }
 
-class CpfInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final numeros = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-
-    if (numeros.isEmpty) {
-      return const TextEditingValue();
-    }
-
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < numeros.length && i < 11; i++) {
-      if (i == 3 || i == 6) {
-        buffer.write('.');
-      }
-
-      if (i == 9) {
-        buffer.write('-');
-      }
-
-      buffer.write(numeros[i]);
-    }
-
-    final textoFormatado = buffer.toString();
-
-    return TextEditingValue(
-      text: textoFormatado,
-      selection: TextSelection.collapsed(offset: textoFormatado.length),
-    );
-  }
-}
-
-class NameInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final palavras = newValue.text.split(' ');
-
-    final texto = palavras
-        .map((palavra) {
-          if (palavra.isEmpty) {
-            return '';
-          }
-
-          return palavra[0].toUpperCase() +
-              (palavra.length > 1 ? palavra.substring(1) : '');
-        })
-        .join(' ');
-
-    return newValue.copyWith(
-      text: texto,
-      selection: TextSelection.collapsed(offset: texto.length),
-    );
-  }
-}
-
-class CepInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    String valor = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-
-    if (valor.length > 8) {
-      valor = valor.substring(0, 8);
-    }
-
-    final String textoFormatado;
-
-    if (valor.length <= 5) {
-      textoFormatado = valor;
-    } else {
-      textoFormatado = '${valor.substring(0, 5)}-${valor.substring(5)}';
-    }
-
-    return TextEditingValue(
-      text: textoFormatado,
-      selection: TextSelection.collapsed(offset: textoFormatado.length),
-    );
-  }
-}
-
-class RgInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    String valor = newValue.text.toUpperCase().replaceAll(
-      RegExp(r'[^0-9X]'),
-      '',
-    );
-
-    if (valor.isEmpty) {
-      return const TextEditingValue();
-    }
-
-    final possuiX = valor.contains('X');
-
-    if (possuiX) {
-      valor = valor.replaceAll('X', '');
-
-      valor = '${valor.substring(0, valor.length.clamp(0, 8))}X';
-    } else {
-      valor = valor.substring(0, valor.length.clamp(0, 11));
-    }
-
-    final String textoFormatado;
-
-    if (valor.length > 9 && !valor.endsWith('X')) {
-      textoFormatado = _formatarCin(valor);
-    } else {
-      textoFormatado = _formatarRgAntigo(valor);
-    }
-
-    return TextEditingValue(
-      text: textoFormatado,
-      selection: TextSelection.collapsed(offset: textoFormatado.length),
-    );
-  }
-
-  String _formatarRgAntigo(String valor) {
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < valor.length && i < 9; i++) {
-      if (i == 2 || i == 5) {
-        buffer.write('.');
-      }
-
-      if (i == 8) {
-        buffer.write('-');
-      }
-
-      buffer.write(valor[i]);
-    }
-
-    return buffer.toString();
-  }
-
-  String _formatarCin(String valor) {
-    final numeros = valor.replaceAll(RegExp(r'[^0-9]'), '');
-
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < numeros.length && i < 11; i++) {
-      if (i == 3 || i == 6) {
-        buffer.write('.');
-      }
-
-      if (i == 9) {
-        buffer.write('-');
-      }
-
-      buffer.write(numeros[i]);
-    }
-
-    return buffer.toString();
-  }
-}
-
 class _ContaState extends State<Conta> {
+  final _formKey = GlobalKey<FormState>();
+
   bool modoEdicao = false;
   bool carregandoCidades = false;
   bool buscandoCep = false;
@@ -196,6 +36,9 @@ class _ContaState extends State<Conta> {
   bool salvandoPerfil = false;
 
   String? ultimoCepConsultado;
+
+  String versaoApp = '';
+  String numeroBuild = '';
 
   final FocusNode senhaFocus = FocusNode();
 
@@ -259,7 +102,26 @@ class _ContaState extends State<Conta> {
     super.initState();
 
     _salvarPaginaAtual();
+    carregarVersaoApp();
     carregarPerfil();
+  }
+
+  Future<void> carregarVersaoApp() async {
+    try {
+      final informacoes = await PackageInfo.fromPlatform();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        versaoApp = informacoes.version;
+        numeroBuild = informacoes.buildNumber;
+      });
+    } catch (erro, stackTrace) {
+      debugPrint('Erro ao carregar versão do aplicativo: $erro');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> carregarPerfil() async {
@@ -394,6 +256,10 @@ class _ContaState extends State<Conta> {
     }
 
     FocusManager.instance.primaryFocus?.unfocus();
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final supabase = Supabase.instance.client;
     final usuario = supabase.auth.currentUser;
@@ -1200,188 +1066,14 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
   }
 
   Future<void> selecionarDataNascimento() async {
-    final agora = DateTime.now();
-
-    final anoInicial = dataNascimentoController.text.isNotEmpty
-        ? DateFormat('dd/MM/yyyy').parse(dataNascimentoController.text).year
-        : agora.year - 30;
-
-    final int? ano = await _selecionarAno(
-      anoInicial: anoInicial,
-      primeiroAno: 1900,
-      ultimoAno: agora.year,
-    );
-
-    if (ano == null || !mounted) {
-      return;
-    }
-
-    final int? mes = await _selecionarMes(ano: ano, mesInicial: 1);
-
-    if (mes == null || !mounted) {
-      return;
-    }
-
-    final ultimoDiaDoMes = DateTime(ano, mes + 1, 0).day;
-
-    final DateTime? data = await showDatePicker(
+    final data = await SeletorDataNascimento.selecionar(
       context: context,
-      initialDate: DateTime(ano, mes, 1),
-      firstDate: DateTime(ano, mes, 1),
-      lastDate: DateTime(
-        ano,
-        mes,
-        ano == agora.year && mes == agora.month ? agora.day : ultimoDiaDoMes,
-      ),
-      locale: const Locale('pt', 'BR'),
-      helpText: 'SELECIONE O DIA',
-      cancelText: 'CANCELAR',
-      confirmText: 'OK',
-      builder: _temaCalendarioBillhard,
+      dataAtual: dataNascimentoController.text,
     );
 
     if (data != null) {
       dataNascimentoController.text = DateFormat('dd/MM/yyyy').format(data);
     }
-  }
-
-  Future<int?> _selecionarAno({
-    required int anoInicial,
-    required int primeiroAno,
-    required int ultimoAno,
-  }) {
-    return showDialog<int>(
-      context: context,
-      builder: (context) {
-        return Theme(
-          data: _temaBillhard(),
-          child: AlertDialog(
-            backgroundColor: BillhardColors.bege,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              'Selecione o ano',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: BillhardColors.verdePrincipal,
-              ),
-            ),
-            content: SizedBox(
-              width: 320,
-              height: 360,
-              child: YearPicker(
-                firstDate: DateTime(primeiroAno),
-                lastDate: DateTime(ultimoAno),
-                selectedDate: DateTime(anoInicial),
-                currentDate: DateTime.now(),
-                onChanged: (data) {
-                  Navigator.pop(context, data.year);
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<int?> _selecionarMes({required int ano, required int mesInicial}) {
-    const meses = [
-      'Janeiro',
-      'Fevereiro',
-      'Março',
-      'Abril',
-      'Maio',
-      'Junho',
-      'Julho',
-      'Agosto',
-      'Setembro',
-      'Outubro',
-      'Novembro',
-      'Dezembro',
-    ];
-
-    final agora = DateTime.now();
-
-    return showDialog<int>(
-      context: context,
-      builder: (context) {
-        return Theme(
-          data: _temaBillhard(),
-          child: AlertDialog(
-            backgroundColor: BillhardColors.bege,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Text(
-              'Selecione o mês de $ano',
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                color: BillhardColors.verdePrincipal,
-              ),
-            ),
-            content: SizedBox(
-              width: 320,
-              child: GridView.builder(
-                shrinkWrap: true,
-                itemCount: 12,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 1.7,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemBuilder: (context, index) {
-                  final mes = index + 1;
-
-                  final mesFuturo = ano == agora.year && mes > agora.month;
-
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: mesFuturo
-                        ? null
-                        : () {
-                            Navigator.pop(context, mes);
-                          },
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        color: mes == mesInicial
-                            ? BillhardColors.verdePrincipal
-                            : BillhardColors.verdePrincipal.withValues(
-                                alpha: 0.08,
-                              ),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: BillhardColors.verdePrincipal.withValues(
-                            alpha: 0.25,
-                          ),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          meses[index],
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                            color: mesFuturo
-                                ? Colors.grey
-                                : mes == mesInicial
-                                ? Colors.white
-                                : BillhardColors.verdePrincipal,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   ThemeData _temaBillhard() {
@@ -1425,18 +1117,30 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
         color: Colors.grey.shade500,
       ),
       suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(4),
-        borderSide: const BorderSide(color: Colors.grey, width: 1),
+        borderSide: const BorderSide(color: Colors.grey),
       ),
       disabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(4),
-        borderSide: const BorderSide(color: Colors.grey, width: 1),
+        borderSide: const BorderSide(color: Colors.grey),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(4),
-        borderSide: const BorderSide(color: Colors.grey, width: 1),
+        borderSide: const BorderSide(
+          color: BillhardColors.verdePrincipal,
+          width: 1.4,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: const BorderSide(color: Colors.red, width: 1.4),
       ),
     );
   }
@@ -1444,22 +1148,51 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
   Widget tituloCampo({
     required String titulo,
     required BillhardResponsive ui,
-    required double margemTop,
+    double margemTop = 10,
   }) {
     return Container(
-      width: ui.cardWidth,
-      margin: EdgeInsets.only(top: margemTop),
-      child: Row(
-        children: [
-          Text(
-            titulo,
-            style: GoogleFonts.manrope(
-              fontSize: ui.titleSize * 0.33,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade800,
-            ),
-          ),
-        ],
+      width: double.infinity,
+      margin: EdgeInsets.only(top: margemTop, bottom: 5),
+      child: Text(
+        titulo,
+        style: GoogleFonts.manrope(
+          fontSize: ui.titleSize * 0.33,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey.shade800,
+        ),
+      ),
+    );
+  }
+
+  Widget campoObrigatorio({
+    required TextEditingController controller,
+    required String hint,
+    required TextStyle estilo,
+    TextInputType keyboardType = TextInputType.text,
+    TextInputAction textInputAction = TextInputAction.next,
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
+    ValueChanged<String>? onChanged,
+  }) {
+    return IgnorePointer(
+      ignoring: !modoEdicao,
+      child: TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        inputFormatters: inputFormatters,
+        textCapitalization: textCapitalization,
+        readOnly: readOnly || !modoEdicao,
+        onTap: onTap,
+        onChanged: onChanged,
+        validator: validator,
+        style: estilo,
+        textAlignVertical: TextAlignVertical.center,
+        decoration: inputDecoration(hintText: hint, suffixIcon: suffixIcon),
       ),
     );
   }
@@ -1492,611 +1225,250 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
       color: Colors.black,
     );
 
+    if (carregandoPerfil) {
+      return const Scaffold(
+        backgroundColor: BillhardColors.bege,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: BillhardColors.verdePrincipal,
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: BillhardColors.bege,
-      body: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
-        child: Stack(
-          children: [
-            SingleChildScrollView(
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: (MediaQuery.sizeOf(context).width - ui.cardWidth) / 2,
+                right: (MediaQuery.sizeOf(context).width - ui.cardWidth) / 2,
+                top: ui.cardHeight * 0.05,
+                bottom: ui.cardHeight * 0.12,
+              ),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    margin: EdgeInsets.only(top: ui.cardHeight * 0.2),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: fazendoLogout ? null : confirmarLogout,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  fazendoLogout
-                                      ? const SizedBox(
-                                          width: 17,
-                                          height: 17,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: BillhardColors.terraCota,
-                                          ),
-                                        )
-                                      : const Icon(
-                                          Icons.logout_rounded,
-                                          size: 19,
-                                          color: BillhardColors.terraCota,
-                                        ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    fazendoLogout ? 'Saindo...' : 'Sair',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: ui.titleSize * 0.34,
-                                      fontWeight: FontWeight.w700,
-                                      color: BillhardColors.terraCota,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    //margin: EdgeInsets.only(top: ui.cardHeight * 0.3),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: ui.cardWidth * 0.3,
-                          height: ui.cardWidth * 0.3,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: BillhardColors.bege,
-                            border: Border.all(
-                              color: Colors.grey.shade500,
-                              width: 1,
-                            ),
-                          ),
-                          foregroundDecoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black.withValues(alpha: 0.05),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                _obterIniciais(nomeController.text),
-                                style: TextStyle(
-                                  fontSize: ui.titleSize * 0.8,
-                                  fontWeight: FontWeight.w700,
-                                  color: BillhardColors.verdePrincipal,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                nomeController.text.trim().isEmpty
-                                    ? 'Usuário Billhard'
-                                    : nomeController.text.trim(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.manrope(
-                                  fontSize: ui.titleSize * 0.65,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.4,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Material(
-                              color: Colors.transparent,
-                              shape: const CircleBorder(),
-                              child: InkWell(
-                                customBorder: const CircleBorder(),
-                                splashColor: BillhardColors.verdePrincipal
-                                    .withValues(alpha: 0.20),
-                                highlightColor: Colors.transparent,
-                                onTap: carregandoPerfil || salvandoPerfil
-                                    ? null
-                                    : editarOuSalvarPerfil,
-                                child: SizedBox(
-                                  width: 34,
-                                  height: 34,
-                                  child: Center(
-                                    child: salvandoPerfil
-                                        ? const SizedBox(
-                                            width: 17,
-                                            height: 17,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: BillhardColors.terraCota,
-                                            ),
-                                          )
-                                        : Icon(
-                                            modoEdicao
-                                                ? Icons.save_outlined
-                                                : Icons.edit_outlined,
-                                            color: modoEdicao
-                                                ? BillhardColors.verdePrincipal
-                                                : BillhardColors.terraCota,
-                                            size: 18,
-                                          ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          width: ui.cardWidth * 0.9,
-                          height: ui.cardWidth * 0.1,
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(color: Colors.grey, width: 1),
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Gerencie suas Informações pessoais',
-                              style: GoogleFonts.manrope(
-                                fontSize: ui.titleSize * 0.35,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Container(
-                    width: ui.cardWidth,
-                    height: ui.cardHeight * 0.12,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.account_circle_outlined,
-                          color: BillhardColors.terraCota,
-                          size: ui.titleSize * 0.6,
-                        ),
-                        Container(
-                          margin: EdgeInsets.only(left: ui.cardWidth * 0.01),
-                          child: Text(
-                            'INFORMACOES PESSOAIS',
-                            style: GoogleFonts.manrope(
-                              fontSize: ui.titleSize * 0.35,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  tituloCampo(
-                    titulo: 'NOME COMPLETO',
-                    ui: ui,
-                    margemTop: ui.cardHeight * 0.02,
-                  ),
-
                   SizedBox(
                     width: ui.cardWidth,
-                    child: IgnorePointer(
-                      ignoring: !modoEdicao,
-                      child: TextFormField(
-                        controller: nomeController,
-                        readOnly: !modoEdicao,
-                        keyboardType: TextInputType.name,
-                        textCapitalization: TextCapitalization.words,
-                        textInputAction: TextInputAction.next,
-                        textAlignVertical: TextAlignVertical.center,
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r"[a-zA-ZÀ-ÿ\s'-]"),
-                          ),
-                          LengthLimitingTextInputFormatter(60),
-                          NameInputFormatter(),
-                        ],
-                        style: estiloInput,
-                        decoration:
-                            inputDecoration(
-                              hintText: 'Seu nome completo',
-                            ).copyWith(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: ui.cardHeight * 0.02,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        tooltip: 'Sair da conta',
+                        onPressed: fazendoLogout ? null : confirmarLogout,
+                        icon: fazendoLogout
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: BillhardColors.terraCota,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.logout_rounded,
+                                color: BillhardColors.terraCota,
                               ),
-                            ),
                       ),
                     ),
                   ),
-
                   Container(
-                    width: ui.cardWidth,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          children: [
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: tituloCampo(
-                                titulo: 'CPF',
-                                ui: ui,
-                                margemTop: 5,
-                              ),
-                            ),
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: IgnorePointer(
-                                ignoring: !modoEdicao,
-                                child: TextFormField(
-                                  controller: cpfController,
-                                  readOnly: !modoEdicao,
-                                  keyboardType: TextInputType.number,
-                                  textInputAction: TextInputAction.next,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(11),
-                                    CpfInputFormatter(),
-                                  ],
-                                  style: estiloInput,
-                                  decoration:
-                                      inputDecoration(
-                                        hintText: '000.000.000-00',
-                                      ).copyWith(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: ui.cardHeight * 0.02,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: tituloCampo(
-                                titulo: 'RG',
-                                ui: ui,
-                                margemTop: 5,
-                              ),
-                            ),
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: IgnorePointer(
-                                ignoring: !modoEdicao,
-                                child: TextFormField(
-                                  controller: rgController,
-                                  readOnly: !modoEdicao,
-                                  keyboardType: TextInputType.number,
-                                  textInputAction: TextInputAction.next,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                    LengthLimitingTextInputFormatter(11),
-                                    RgInputFormatter(),
-                                  ],
-                                  style: estiloInput,
-                                  decoration:
-                                      inputDecoration(
-                                        hintText: '00.000.000-0',
-                                      ).copyWith(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: ui.cardHeight * 0.02,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    width: ui.cardWidth * 0.3,
+                    height: ui.cardWidth * 0.3,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: BillhardColors.bege,
+                      border: Border.all(color: Colors.grey.shade500),
                     ),
-                  ),
-                  tituloCampo(
-                    titulo: 'TELEFONE',
-                    ui: ui,
-                    margemTop: ui.cardHeight * 0.02,
-                  ),
-
-                  SizedBox(
-                    width: ui.cardWidth,
-                    child: IgnorePointer(
-                      ignoring: !modoEdicao,
-                      child: TextFormField(
-                        controller: telefoneController,
-                        readOnly: !modoEdicao,
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.next,
-                        textAlignVertical: TextAlignVertical.center,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'[0-9()+\-\s]'),
-                          ),
-                          LengthLimitingTextInputFormatter(20),
-                        ],
-                        style: estiloInput,
-                        decoration: inputDecoration(hintText: '(00) 00000-0000')
-                            .copyWith(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: ui.cardHeight * 0.02,
-                              ),
-                            ),
+                    foregroundDecoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withValues(alpha: 0.05),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _obterIniciais(nomeController.text),
+                      style: TextStyle(
+                        fontSize: ui.titleSize * 0.8,
+                        fontWeight: FontWeight.w700,
+                        color: BillhardColors.verdePrincipal,
                       ),
                     ),
                   ),
+                  SizedBox(height: ui.cardHeight * 0.015),
+                  Text(
+                    nomeController.text.trim().isEmpty
+                        ? 'Usuário Billhard'
+                        : nomeController.text.trim(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: ui.titleSize * 0.65,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  SizedBox(height: ui.cardHeight * 0.008),
+                  Text(
+                    'Gerencie suas informações pessoais',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.manrope(
+                      fontSize: ui.titleSize * 0.34,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  SizedBox(height: ui.cardHeight * 0.05),
 
-                  Column(
+                  _secao(
+                    ui: ui,
+                    icone: Icons.account_circle_outlined,
+                    titulo: 'INFORMAÇÕES PESSOAIS',
+                  ),
+
+                  tituloCampo(titulo: 'NOME COMPLETO', ui: ui),
+                  campoObrigatorio(
+                    controller: nomeController,
+                    hint: 'Seu nome completo',
+                    estilo: estiloInput,
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.words,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r"[a-zA-ZÀ-ÿ\s'-]"),
+                      ),
+                      LengthLimitingTextInputFormatter(60),
+                      NameInputFormatter(),
+                    ],
+                    onChanged: (_) => setState(() {}),
+                    validator: (valor) {
+                      if (valor == null || valor.trim().isEmpty) {
+                        return 'Informe seu nome completo';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      tituloCampo(
-                        titulo: 'DATA DE NASCIMENTO',
-                        ui: ui,
-                        margemTop: ui.cardHeight * 0.02,
+                      Expanded(
+                        child: Column(
+                          children: [
+                            tituloCampo(titulo: 'CPF', ui: ui),
+                            campoObrigatorio(
+                              controller: cpfController,
+                              hint: '000.000.000-00',
+                              estilo: estiloInput,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [CpfInputFormatter()],
+                              validator: (valor) {
+                                if (valor == null || valor.trim().isEmpty) {
+                                  return 'Informe o CPF';
+                                }
+                                if (!DocumentoValidator.cpfValido(valor)) {
+                                  return 'CPF inválido';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                      SizedBox(
-                        width: ui.cardWidth,
-                        height: ui.cardHeight * 0.11,
-                        child: IgnorePointer(
-                          ignoring: !modoEdicao,
-                          child: TextFormField(
-                            controller: dataNascimentoController,
-                            readOnly: true,
-                            style: estiloInput,
-                            expands: true,
-                            minLines: null,
-                            maxLines: null,
-                            textAlignVertical: TextAlignVertical.center,
-                            onTap: selecionarDataNascimento,
-                            decoration:
-                                inputDecoration(
-                                  hintText: '00/00/0000',
-                                  suffixIcon: const Icon(
-                                    Icons.calendar_month_outlined,
-                                    color: Colors.grey,
-                                  ),
-                                ).copyWith(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: ui.cardHeight * 0.02,
-                                  ),
-                                ),
-                          ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            tituloCampo(titulo: 'RG', ui: ui),
+                            campoObrigatorio(
+                              controller: rgController,
+                              hint: '00.000.000-0',
+                              estilo: estiloInput,
+                              keyboardType: TextInputType.text,
+                              inputFormatters: [RgInputFormatter()],
+                              validator: (valor) {
+                                if (valor == null || valor.trim().isEmpty) {
+                                  return 'Informe o RG';
+                                }
+                                if (!DocumentoValidator.rgFormatoValido(
+                                  valor,
+                                )) {
+                                  return 'RG inválido';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
 
-                  Container(
-                    width: ui.cardWidth,
-                    height: ui.cardHeight * 0.12,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.place_outlined,
-                          color: BillhardColors.terraCota,
-                          size: ui.titleSize * 0.6,
-                        ),
-                        Container(
-                          margin: EdgeInsets.only(left: ui.cardWidth * 0.01),
-                          child: Text(
-                            'ENDEREÇO',
-                            style: GoogleFonts.manrope(
-                              fontSize: ui.titleSize * 0.35,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  tituloCampo(titulo: 'TELEFONE', ui: ui),
+                  campoObrigatorio(
+                    controller: telefoneController,
+                    hint: '(00) 00000-0000',
+                    estilo: estiloInput,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[0-9()+\-\s]'),
+                      ),
+                      LengthLimitingTextInputFormatter(20),
+                    ],
+                    validator: (valor) {
+                      final numeros =
+                          valor?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+                      if (numeros.length < 10) {
+                        return 'Informe um telefone válido';
+                      }
+                      return null;
+                    },
                   ),
 
-                  Container(
-                    width: ui.cardWidth,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          children: [
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: tituloCampo(
-                                titulo: 'CEP',
-                                ui: ui,
-                                margemTop: 5,
-                              ),
-                            ),
-
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              height: ui.cardHeight * 0.105,
-                              child: IgnorePointer(
-                                ignoring: !modoEdicao || buscandoCep,
-                                child: TextFormField(
-                                  controller: cepController,
-                                  readOnly: !modoEdicao || buscandoCep,
-                                  keyboardType: TextInputType.number,
-                                  textInputAction: TextInputAction.next,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  inputFormatters: [CepInputFormatter()],
-                                  style: estiloInput,
-                                  onChanged: (valor) {
-                                    final cep = valor.replaceAll(
-                                      RegExp(r'[^0-9]'),
-                                      '',
-                                    );
-
-                                    if (cep.length < 8) {
-                                      ultimoCepConsultado = null;
-                                    }
-
-                                    if (cep.length == 8) {
-                                      buscarEnderecoPeloCep();
-                                    }
-                                  },
-                                  decoration:
-                                      inputDecoration(
-                                        hintText: '00000-000',
-                                        suffixIcon: buscandoCep
-                                            ? const Padding(
-                                                padding: EdgeInsets.all(14),
-                                                child: SizedBox(
-                                                  width: 18,
-                                                  height: 18,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                ),
-                                              )
-                                            : const Icon(
-                                                Icons.search_outlined,
-                                                color: Colors.grey,
-                                              ),
-                                      ).copyWith(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: ui.cardHeight * 0.016,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        Column(
-                          children: [
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: tituloCampo(
-                                titulo: 'ESTADO',
-                                ui: ui,
-                                margemTop: ui.cardHeight * 0.02,
-                              ),
-                            ),
-                            SizedBox(
-                              width: ui.cardWidth / 2.1,
-                              child: IgnorePointer(
-                                ignoring: !modoEdicao,
-                                child: DropdownButtonFormField<String>(
-                                  key: ValueKey('estado-$estadoSelecionado'),
-                                  initialValue: estadoSelecionado,
-                                  isExpanded: true,
-                                  style: estiloInput,
-                                  decoration:
-                                      inputDecoration(
-                                        hintText: 'Selecione o estado',
-                                      ).copyWith(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: ui.cardHeight * 0.016,
-                                        ),
-                                      ),
-                                  icon: const Icon(
-                                    Icons.keyboard_arrow_down,
-                                    color: Colors.grey,
-                                  ),
-                                  items: estados.map((estado) {
-                                    return DropdownMenuItem<String>(
-                                      value: estado,
-                                      child: Text(estado, style: estiloInput),
-                                    );
-                                  }).toList(),
-                                  onChanged: modoEdicao
-                                      ? (novoEstado) {
-                                          if (novoEstado == null) {
-                                            return;
-                                          }
-
-                                          setState(() {
-                                            estadoSelecionado = novoEstado;
-                                          });
-
-                                          carregarCidades(novoEstado);
-                                        }
-                                      : null,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  tituloCampo(titulo: 'DATA DE NASCIMENTO', ui: ui),
+                  campoObrigatorio(
+                    controller: dataNascimentoController,
+                    hint: '00/00/0000',
+                    estilo: estiloInput,
+                    readOnly: true,
+                    onTap: modoEdicao ? selecionarDataNascimento : null,
+                    suffixIcon: const Icon(
+                      Icons.calendar_month_outlined,
+                      color: Colors.grey,
                     ),
+                    validator: (valor) {
+                      if (valor == null || valor.trim().isEmpty) {
+                        return 'Informe sua data de nascimento';
+                      }
+                      return null;
+                    },
                   ),
 
-                  tituloCampo(
-                    titulo: 'CIDADE',
+                  SizedBox(height: ui.cardHeight * 0.04),
+                  _secao(
                     ui: ui,
-                    margemTop: ui.cardHeight * 0.02,
+                    icone: Icons.place_outlined,
+                    titulo: 'ENDEREÇO',
                   ),
 
-                  SizedBox(
-                    width: ui.cardWidth,
-                    height: ui.cardHeight * 0.10,
-                    child: IgnorePointer(
-                      ignoring:
-                          !modoEdicao ||
-                          estadoSelecionado == null ||
-                          carregandoCidades,
-                      child: DropdownButtonFormField<String>(
-                        key: ValueKey(
-                          'cidade-'
-                          '$estadoSelecionado-'
-                          '$cidadeSelecionada-'
-                          '${cidades.length}',
-                        ),
-
-                        initialValue: cidadeSelecionada,
-
-                        isExpanded: true,
-
-                        style: estiloInput,
-
-                        decoration:
-                            inputDecoration(
-                              hintText: carregandoCidades
-                                  ? 'Carregando cidades...'
-                                  : estadoSelecionado == null
-                                  ? 'Selecione primeiro o estado'
-                                  : 'Selecione a cidade',
-                              suffixIcon: carregandoCidades
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            tituloCampo(titulo: 'CEP', ui: ui),
+                            campoObrigatorio(
+                              controller: cepController,
+                              hint: '00000-000',
+                              estilo: estiloInput,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [CepInputFormatter()],
+                              suffixIcon: buscandoCep
                                   ? const Padding(
                                       padding: EdgeInsets.all(14),
                                       child: SizedBox(
@@ -2107,223 +1479,240 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                                         ),
                                       ),
                                     )
-                                  : null,
-                            ).copyWith(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: ui.cardHeight * 0.016,
-                              ),
-                            ),
-
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down,
-                          color: Colors.grey,
-                        ),
-
-                        /*
-       * Controla o texto exibido quando o dropdown
-       * estiver fechado.
-       */
-                        selectedItemBuilder: (BuildContext context) {
-                          return cidades.map<Widget>((cidade) {
-                            return Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                cidade,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: estiloInput.copyWith(
-                                  color: Colors.black,
-                                ),
-                              ),
-                            );
-                          }).toList();
-                        },
-
-                        items: cidades.map((cidade) {
-                          return DropdownMenuItem<String>(
-                            value: cidade,
-                            child: Text(
-                              cidade,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: estiloInput.copyWith(color: Colors.black),
-                            ),
-                          );
-                        }).toList(),
-
-                        onChanged: modoEdicao && !carregandoCidades
-                            ? (novaCidade) {
-                                setState(() {
-                                  cidadeSelecionada = novaCidade;
-                                });
-
-                                debugPrint(
-                                  'Cidade selecionada: $cidadeSelecionada',
+                                  : const Icon(
+                                      Icons.search_outlined,
+                                      color: Colors.grey,
+                                    ),
+                              onChanged: (valor) {
+                                final cep = valor.replaceAll(
+                                  RegExp(r'[^0-9]'),
+                                  '',
                                 );
-                              }
+                                if (cep.length < 8) {
+                                  ultimoCepConsultado = null;
+                                }
+                                if (cep.length == 8) {
+                                  buscarEnderecoPeloCep();
+                                }
+                              },
+                              validator: (valor) {
+                                final cep =
+                                    valor?.replaceAll(RegExp(r'[^0-9]'), '') ??
+                                    '';
+                                if (cep.length != 8) {
+                                  return 'CEP inválido';
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            tituloCampo(titulo: 'ESTADO', ui: ui),
+                            IgnorePointer(
+                              ignoring: !modoEdicao,
+                              child: DropdownButtonFormField<String>(
+                                value: estadoSelecionado,
+                                isExpanded: true,
+                                style: estiloInput,
+                                decoration: inputDecoration(hintText: 'Estado'),
+                                items: estados
+                                    .map(
+                                      (estado) => DropdownMenuItem(
+                                        value: estado,
+                                        child: Text(estado),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (estado) {
+                                  if (estado == null) return;
+                                  setState(() => estadoSelecionado = estado);
+                                  carregarCidades(estado);
+                                },
+                                validator: (valor) =>
+                                    valor == null ? 'Selecione o estado' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  tituloCampo(titulo: 'CIDADE', ui: ui),
+                  IgnorePointer(
+                    ignoring: !modoEdicao || carregandoCidades,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey(
+                        '$estadoSelecionado-$cidadeSelecionada-${cidades.length}',
+                      ),
+                      value: cidadeSelecionada,
+                      isExpanded: true,
+                      style: estiloInput,
+                      decoration: inputDecoration(
+                        hintText: carregandoCidades
+                            ? 'Carregando cidades...'
+                            : estadoSelecionado == null
+                            ? 'Selecione o estado'
+                            : 'Selecione a cidade',
+                        suffixIcon: carregandoCidades
+                            ? const Padding(
+                                padding: EdgeInsets.all(14),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
                             : null,
                       ),
+                      items: cidades
+                          .map(
+                            (cidade) => DropdownMenuItem(
+                              value: cidade,
+                              child: Text(
+                                cidade,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: carregandoCidades
+                          ? null
+                          : (cidade) {
+                              setState(() => cidadeSelecionada = cidade);
+                            },
+                      validator: (valor) =>
+                          valor == null ? 'Selecione a cidade' : null,
                     ),
                   ),
 
-                  tituloCampo(
-                    titulo: 'ENDEREÇO',
-                    ui: ui,
-                    margemTop: ui.cardHeight * 0.02,
+                  tituloCampo(titulo: 'ENDEREÇO', ui: ui),
+                  campoObrigatorio(
+                    controller: enderecoController,
+                    hint: 'Rua ou avenida',
+                    estilo: estiloInput,
+                    keyboardType: TextInputType.streetAddress,
+                    textCapitalization: TextCapitalization.words,
+                    inputFormatters: [LengthLimitingTextInputFormatter(120)],
+                    validator: (valor) {
+                      if (valor == null || valor.trim().isEmpty) {
+                        return 'Informe o endereço';
+                      }
+                      return null;
+                    },
                   ),
 
-                  SizedBox(
-                    width: ui.cardWidth,
-                    child: IgnorePointer(
-                      ignoring: !modoEdicao,
-                      child: TextFormField(
-                        controller: enderecoController,
-                        readOnly: !modoEdicao,
-                        keyboardType: TextInputType.streetAddress,
-                        textCapitalization: TextCapitalization.words,
-                        textInputAction: TextInputAction.next,
-                        textAlignVertical: TextAlignVertical.center,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(120),
-                        ],
-                        style: estiloInput,
-                        decoration: inputDecoration(hintText: 'Rua ou avenida')
-                            .copyWith(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: ui.cardHeight * 0.02,
-                              ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            tituloCampo(titulo: 'NÚMERO', ui: ui),
+                            campoObrigatorio(
+                              controller: numeroController,
+                              hint: 'Número',
+                              estilo: estiloInput,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              validator: (valor) {
+                                if (valor == null || valor.trim().isEmpty) {
+                                  return 'Informe o número';
+                                }
+                                return null;
+                              },
                             ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-
-                  SizedBox(
-                    width: ui.cardWidth,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: ui.cardWidth / 2.1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              tituloCampo(
-                                titulo: 'NÚMERO',
-                                ui: ui,
-                                margemTop: ui.cardHeight * 0.02,
-                              ),
-                              IgnorePointer(
-                                ignoring: !modoEdicao,
-                                child: TextFormField(
-                                  controller: numeroController,
-                                  readOnly: !modoEdicao,
-                                  keyboardType: TextInputType.number,
-                                  textInputAction: TextInputAction.next,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  inputFormatters: [
-                                    LengthLimitingTextInputFormatter(10),
-                                  ],
-                                  style: estiloInput,
-                                  decoration:
-                                      inputDecoration(
-                                        hintText: 'Digite o número',
-                                      ).copyWith(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: ui.cardHeight * 0.02,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          width: ui.cardWidth / 2.1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              tituloCampo(
-                                titulo: 'BAIRRO',
-                                ui: ui,
-                                margemTop: ui.cardHeight * 0.02,
-                              ),
-                              IgnorePointer(
-                                ignoring: !modoEdicao,
-                                child: TextFormField(
-                                  controller: bairroController,
-                                  readOnly: !modoEdicao,
-                                  keyboardType: TextInputType.streetAddress,
-                                  textCapitalization: TextCapitalization.words,
-                                  textInputAction: TextInputAction.next,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  inputFormatters: [
-                                    LengthLimitingTextInputFormatter(60),
-                                  ],
-                                  style: estiloInput,
-                                  decoration:
-                                      inputDecoration(
-                                        hintText: 'Nome do bairro',
-                                      ).copyWith(
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                          vertical: ui.cardHeight * 0.02,
-                                        ),
-                                      ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  tituloCampo(
-                    titulo: 'COMPLEMENTO',
-                    ui: ui,
-                    margemTop: ui.cardHeight * 0.02,
-                  ),
-
-                  SizedBox(
-                    width: ui.cardWidth,
-                    child: IgnorePointer(
-                      ignoring: !modoEdicao,
-                      child: TextFormField(
-                        controller: complementoController,
-                        readOnly: !modoEdicao,
-                        keyboardType: TextInputType.streetAddress,
-                        textCapitalization: TextCapitalization.sentences,
-                        textInputAction: TextInputAction.done,
-                        textAlignVertical: TextAlignVertical.center,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(100),
-                        ],
-                        style: estiloInput,
-                        decoration:
-                            inputDecoration(
-                              hintText:
-                                  'Número, apartamento, bloco, sala ou referência',
-                            ).copyWith(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: ui.cardHeight * 0.02,
-                              ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            tituloCampo(titulo: 'BAIRRO', ui: ui),
+                            campoObrigatorio(
+                              controller: bairroController,
+                              hint: 'Bairro',
+                              estilo: estiloInput,
+                              textCapitalization: TextCapitalization.words,
+                              inputFormatters: [
+                                LengthLimitingTextInputFormatter(60),
+                              ],
+                              validator: (valor) {
+                                if (valor == null || valor.trim().isEmpty) {
+                                  return 'Informe o bairro';
+                                }
+                                return null;
+                              },
                             ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  tituloCampo(titulo: 'COMPLEMENTO', ui: ui),
+                  campoObrigatorio(
+                    controller: complementoController,
+                    hint: 'Apartamento, bloco, sala ou referência',
+                    estilo: estiloInput,
+                    textInputAction: TextInputAction.done,
+                    textCapitalization: TextCapitalization.sentences,
+                    inputFormatters: [LengthLimitingTextInputFormatter(100)],
+                  ),
+
+                  SizedBox(height: ui.cardHeight * 0.07),
+                  SizedBox(
+                    width: ui.cardWidth,
+                    height: ui.cardHeight * 0.15,
+                    child: ElevatedButton.icon(
+                      onPressed: carregandoPerfil || salvandoPerfil
+                          ? null
+                          : editarOuSalvarPerfil,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: modoEdicao
+                            ? BillhardColors.verdePrincipal
+                            : BillhardColors.terraCota,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      icon: salvandoPerfil
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              modoEdicao
+                                  ? Icons.save_outlined
+                                  : Icons.edit_outlined,
+                            ),
+                      label: Text(
+                        salvandoPerfil
+                            ? 'SALVANDO ALTERAÇÕES...'
+                            : modoEdicao
+                            ? 'SALVAR ALTERAÇÕES'
+                            : 'EDITAR INFORMAÇÕES',
+                        style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
 
                   SizedBox(height: ui.cardHeight * 0.10),
-
                   Container(
                     width: ui.cardWidth,
                     padding: EdgeInsets.symmetric(
@@ -2333,7 +1722,6 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                       border: Border(
                         top: BorderSide(
                           color: Colors.grey.withValues(alpha: 0.45),
-                          width: 1,
                         ),
                       ),
                     ),
@@ -2363,7 +1751,6 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                           'Ao excluir sua conta, seus dados e seu acesso serão removidos permanentemente.',
                           style: GoogleFonts.manrope(
                             fontSize: ui.titleSize * 0.32,
-                            fontWeight: FontWeight.w400,
                             color: Colors.grey.shade700,
                           ),
                         ),
@@ -2398,10 +1785,7 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                               ),
                             ),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
-                                color: Colors.red,
-                                width: 1.2,
-                              ),
+                              side: const BorderSide(color: Colors.red),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(6),
                               ),
@@ -2412,12 +1796,72 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                     ),
                   ),
 
-                  SizedBox(height: ui.cardHeight * 0.12),
+                  SizedBox(height: ui.cardHeight * 0.05),
+                  Column(
+                    children: [
+                      Text(
+                        versaoApp.isEmpty
+                            ? 'Billhard'
+                            : numeroBuild.isEmpty
+                            ? 'Billhard v$versaoApp'
+                            : 'Billhard v$versaoApp ($numeroBuild)',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          fontSize: ui.titleSize * 0.28,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      SizedBox(height: ui.cardHeight * 0.008),
+                      Text(
+                        '© ${DateTime.now().year} Billhard',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.manrope(
+                          fontSize: ui.titleSize * 0.25,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _secao({
+    required BillhardResponsive ui,
+    required IconData icone,
+    required String titulo,
+  }) {
+    return Container(
+      width: ui.cardWidth,
+      padding: EdgeInsets.symmetric(vertical: ui.cardHeight * 0.025),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.35)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icone,
+            color: BillhardColors.terraCota,
+            size: ui.titleSize * 0.6,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            titulo,
+            style: GoogleFonts.manrope(
+              fontSize: ui.titleSize * 0.35,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }

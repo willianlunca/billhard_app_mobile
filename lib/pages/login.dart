@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:billhard_app_mobile/colors/colors.dart';
-import 'package:billhard_app_mobile/pages/modulos.dart';
 import 'package:billhard_app_mobile/pages/novo_usuario.dart';
 import 'package:billhard_app_mobile/pages/recupera_senha.dart';
 import 'package:billhard_app_mobile/services/login_service.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/services/perfil_redirecionamento_service.dart';
 import 'package:billhard_app_mobile/utils/responsive.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -31,6 +31,7 @@ class _LoginState extends State<Login> {
     debugPrint('Página Login salva');
   }
 
+  @override
   void initState() {
     super.initState();
     _salvarPaginaAtual();
@@ -75,10 +76,36 @@ class _LoginState extends State<Login> {
       return;
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const Modulos()),
-    );
+    try {
+      final destino =
+          await PerfilRedirecionamentoService.obterDestinoAposLogin();
+
+      if (!mounted) {
+        return;
+      }
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destino),
+        (route) => false,
+      );
+    } catch (erro, stackTrace) {
+      debugPrint('Erro ao redirecionar usuário: $erro');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Não foi possível verificar suas informações pessoais.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
