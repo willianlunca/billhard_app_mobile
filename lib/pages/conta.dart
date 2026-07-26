@@ -14,8 +14,8 @@ import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
 import 'package:billhard_app_mobile/utils/perfil_input_formatters.dart';
 import 'package:billhard_app_mobile/utils/seletor_data_nascimento.dart';
 import 'package:billhard_app_mobile/utils/responsive.dart';
+import 'package:billhard_app_mobile/generated/app_version.dart';
 import 'package:intl/intl.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
 class Conta extends StatefulWidget {
   const Conta({super.key});
@@ -36,9 +36,6 @@ class _ContaState extends State<Conta> {
   bool salvandoPerfil = false;
 
   String? ultimoCepConsultado;
-
-  String versaoApp = '';
-  String numeroBuild = '';
 
   final FocusNode senhaFocus = FocusNode();
 
@@ -102,26 +99,7 @@ class _ContaState extends State<Conta> {
     super.initState();
 
     _salvarPaginaAtual();
-    carregarVersaoApp();
     carregarPerfil();
-  }
-
-  Future<void> carregarVersaoApp() async {
-    try {
-      final informacoes = await PackageInfo.fromPlatform();
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        versaoApp = informacoes.version;
-        numeroBuild = informacoes.buildNumber;
-      });
-    } catch (erro, stackTrace) {
-      debugPrint('Erro ao carregar versão do aplicativo: $erro');
-      debugPrintStack(stackTrace: stackTrace);
-    }
   }
 
   Future<void> carregarPerfil() async {
@@ -1800,11 +1778,7 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                   Column(
                     children: [
                       Text(
-                        versaoApp.isEmpty
-                            ? 'Billhard'
-                            : numeroBuild.isEmpty
-                            ? 'Billhard v$versaoApp'
-                            : 'Billhard v$versaoApp ($numeroBuild)',
+                        'Billhard $appVersion',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.manrope(
                           fontSize: ui.titleSize * 0.28,
