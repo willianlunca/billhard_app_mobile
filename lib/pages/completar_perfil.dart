@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:billhard_app_mobile/colors/colors.dart';
 import 'package:billhard_app_mobile/pages/login.dart';
 import 'package:billhard_app_mobile/pages/modulos.dart';
+import 'package:billhard_app_mobile/pages/manutencao_page.dart';
 import 'package:billhard_app_mobile/services/cep_service.dart';
 import 'package:billhard_app_mobile/services/documento_validator.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
@@ -228,13 +229,23 @@ class _CompletarPerfilState extends State<CompletarPerfil> {
           'O perfil deste usuário não existe ou não pode ser atualizado.',
         );
       }
-
+      /*
       await PaginaPersistenteService.salvarPagina('Modulos');
 
       if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const Modulos()),
+        (route) => false,
+      );
+      */
+      // Redireciona para a página de manutenção provisóriamente.
+      await PaginaPersistenteService.salvarPagina('ManutencaoPage');
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ManutencaoPage()),
         (route) => false,
       );
     } on PostgrestException catch (erro, stackTrace) {

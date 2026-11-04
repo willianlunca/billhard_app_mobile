@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:billhard_app_mobile/pages/manutencao_page.dart';
 import 'package:billhard_app_mobile/colors/colors.dart';
 import 'package:billhard_app_mobile/pages/login.dart';
 import 'package:billhard_app_mobile/services/cep_service.dart';
@@ -1231,11 +1231,27 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    width: ui.cardWidth,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: IconButton(
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Botão voltar - lado esquerdo
+                      IconButton(
+                        tooltip: 'Voltar',
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => const ManutencaoPage(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.keyboard_return_rounded,
+                          color: BillhardColors.verdePrincipal,
+                        ),
+                      ),
+
+                      // Botão sair - lado direito
+                      IconButton(
                         tooltip: 'Sair da conta',
                         onPressed: fazendoLogout ? null : confirmarLogout,
                         icon: fazendoLogout
@@ -1252,8 +1268,9 @@ Cidade existe na lista....: ${cidades.contains(endereco.cidade)}
                                 color: BillhardColors.terraCota,
                               ),
                       ),
-                    ),
+                    ],
                   ),
+
                   Container(
                     width: ui.cardWidth * 0.3,
                     height: ui.cardWidth * 0.3,

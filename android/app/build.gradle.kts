@@ -1,21 +1,38 @@
+
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
 
-    // O plugin do Flutter deve ficar depois dos plugins Android e Kotlin.
+    // O plugin Flutter deve ficar depois dos plugins Android e Kotlin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Configurações da assinatura de produção.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use {
+        keystoreProperties.load(it)
+    }
+}
+
 android {
-    namespace = "com.example.billhard_app_mobile"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "br.com.billhard.app.automacoes2026"
+
+    // API exigida para novos aplicativos na Google Play.
+    compileSdk = 36
+
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
 
-        // Necessário para flutter_local_notifications.
+        // Necessário para bibliotecas que utilizam APIs Java modernas.
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -24,17 +41,36 @@ android {
     }
 
     defaultConfig {
-        applicationId = "br.com.billhard.mobile"
+        applicationId = "br.com.billhard.app.automacoes2026"
 
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
+
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(
+                    keystoreProperties.getProperty("storeFile")
+                )
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // Assinatura oficial para publicação.
+            signingConfig = signingConfigs.getByName("release")
+
+            // Mantemos desabilitado até validar regras de ofuscação.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

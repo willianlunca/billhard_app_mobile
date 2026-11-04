@@ -10,7 +10,9 @@ import 'package:billhard_app_mobile/pages/conta.dart';
 import 'package:billhard_app_mobile/pages/novo_usuario.dart';
 import 'package:billhard_app_mobile/pages/recupera_senha.dart';
 import 'package:billhard_app_mobile/pages/completar_perfil.dart';
+import 'package:billhard_app_mobile/pages/manutencao_page.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/pages/manutencao_page.dart';
 import 'package:lottie/lottie.dart';
 
 class AuthCheck extends StatefulWidget {
@@ -117,11 +119,14 @@ class _AuthCheckState extends State<AuthCheck> {
       'Novousuario': const Novousuario(),
       'RecuperaSenha': const RecuperaSenha(),
       'Conta': const Conta(),
+      'ManutencaoPage': const ManutencaoPage(),
     };
+
+    if (!mounted) return;
 
     setState(() {
       if (paginaSalva.isEmpty || !paginas.containsKey(paginaSalva)) {
-        destino = const Modulos();
+        destino = const ManutencaoPage();
       } else {
         destino = paginas[paginaSalva]!;
       }
@@ -183,7 +188,9 @@ class MyApp extends StatelessWidget {
       ],
 
       theme: ThemeData(),
-      home: const AuthCheck(),
+      home:
+          //const ManutencaoPage(),
+          const AuthCheck(),
       //home: const Login(),
       //home: const Colaboradores(),
       //home: const LogistCanhoto(),

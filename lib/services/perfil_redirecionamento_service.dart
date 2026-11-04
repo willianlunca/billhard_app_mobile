@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:billhard_app_mobile/pages/manutencao_page.dart';
 import 'package:billhard_app_mobile/pages/completar_perfil.dart';
 import 'package:billhard_app_mobile/pages/modulos.dart';
 import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
@@ -47,9 +47,11 @@ class PerfilRedirecionamentoService {
       return const CompletarPerfil();
     }
 
-    await PaginaPersistenteService.salvarPagina('Modulos');
+    //await PaginaPersistenteService.salvarPagina('Modulos');
+    await PaginaPersistenteService.salvarPagina('ManutencaoPage');
 
-    return const Modulos();
+    //return const Modulos();
+    return const ManutencaoPage();
   }
 
   static Future<bool> usuarioPossuiPerfilCompleto() async {
