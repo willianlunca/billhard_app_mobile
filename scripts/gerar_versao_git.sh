@@ -4,13 +4,15 @@
 set -euo pipefail
 
 # ==============================================
-# BILLHARD - VERSIONAMENTO E PUBLICAÇÃO GIT
+# BILLHARD - VERSIONAMENTO, BUILD E PUBLICAÇÃO
 # ==============================================
+
+REMOTE="origin"
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
 
 if [[ -z "$REPO_ROOT" ]]; then
-  echo "ERRO: Execute dentro de um repositório Git."
+  echo "ERRO: Repositório Git não encontrado."
   exit 1
 fi
 
@@ -19,85 +21,105 @@ cd "$REPO_ROOT"
 PUBSPEC="$REPO_ROOT/pubspec.yaml"
 DART_VERSION="$REPO_ROOT/lib/generated/git_version.dart"
 
-REMOTE="origin"
-
 if [[ ! -f "$PUBSPEC" ]]; then
   echo "ERRO: pubspec.yaml não encontrado."
-  exit 1
-fi
-
-if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
-  echo "ERRO: Remote '$REMOTE' não configurado."
   exit 1
 fi
 
 BRANCH="$(git symbolic-ref --quiet --short HEAD || true)"
 
 if [[ -z "$BRANCH" ]]; then
-  echo "ERRO: HEAD desconectado. Selecione uma branch."
+  echo "ERRO: Nenhuma branch ativa."
   exit 1
 fi
 
-# Entrada interativa pelo terminal.
-if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
-  echo "ERRO: É necessário um terminal interativo."
+if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
+  echo "ERRO: Remote origin não configurado."
   exit 1
 fi
+
+if [[ ! -r /dev/tty ]]; then
+  echo "ERRO: Terminal interativo necessário."
+  exit 1
+fi
+
 
 perguntar() {
-  local __variavel="$1"
-  local __mensagem="$2"
-  local __resposta
+  local variavel="$1"
+  local mensagem="$2"
+  local entrada_usuario
 
-  read -r -p "$__mensagem" __resposta </dev/tty
-  printf -v "$__variavel" '%s' "$__resposta"
+  read -r -p "$mensagem" entrada_usuario </dev/tty
+  printf -v "$variavel" '%s' "$entrada_usuario"
+}
+
+
+confirmar() {
+  local resposta
+  perguntar resposta "$1 [y/N]: "
+
+  case "$resposta" in
+    y|Y|s|S|yes|YES|sim|SIM)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 validar_versao() {
   [[ "$1" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
 }
 
+versao_maior() {
+  local a1 a2 a3 b1 b2 b3
+
+  IFS='.' read -r a1 a2 a3 <<< "$1"
+  IFS='.' read -r b1 b2 b3 <<< "$2"
+
+  if (( 10#$a1 > 10#$b1 )); then return 0; fi
+  if (( 10#$a1 < 10#$b1 )); then return 1; fi
+
+  if (( 10#$a2 > 10#$b2 )); then return 0; fi
+  if (( 10#$a2 < 10#$b2 )); then return 1; fi
+
+  (( 10#$a3 > 10#$b3 ))
+}
+
 echo ""
 echo "=============================================="
-echo " BILLHARD - PUBLICAÇÃO DE VERSÃO"
+echo " BILLHARD - VERSIONAMENTO E BUILD"
 echo "=============================================="
 echo " Branch: $BRANCH"
 echo " Remote: $REMOTE"
 echo ""
 
 # ==============================================
-# 1. SINCRONIZAR REFERÊNCIAS REMOTAS
+# 1. ATUALIZAR TAGS
 # ==============================================
 
-echo "Consultando tags remotas..."
+echo "Consultando repositório remoto..."
 
-if ! git fetch "$REMOTE" --tags; then
-  echo "ERRO: Não foi possível consultar o remoto."
-  exit 1
-fi
+git fetch "$REMOTE" --tags
 
-# Impede publicação sobre uma branch desatualizada.
-if git show-ref --verify --quiet "refs/remotes/$REMOTE/$BRANCH"; then
+if git show-ref --verify --quiet \
+  "refs/remotes/$REMOTE/$BRANCH"; then
+
   if ! git merge-base --is-ancestor \
     "$REMOTE/$BRANCH" HEAD; then
-    echo ""
-    echo "ERRO: A branch remota contém commits"
-    echo "que não estão na branch local."
-    echo "Sincronize a branch antes de publicar."
+
+    echo "ERRO: A branch remota possui commits pendentes."
+    echo "Sincronize antes de continuar."
     exit 1
   fi
 fi
 
 # ==============================================
-# 2. IDENTIFICAR A MAIOR VERSÃO EXISTENTE
+# 2. IDENTIFICAR ÚLTIMA VERSÃO
 # ==============================================
 
-
-# Identifica a maior versão das tags existentes.
-# Compatível com o Bash padrão do macOS.
-
 ULTIMA_VERSAO=""
-
 TAGS="$(git tag --list)"
 
 while IFS= read -r TAG_EXISTENTE; do
@@ -108,35 +130,22 @@ while IFS= read -r TAG_EXISTENTE; do
 
   if validar_versao "$CANDIDATA"; then
 
-    if [[ -z "$ULTIMA_VERSAO" ]]; then
+    if [[ -z "$ULTIMA_VERSAO" ]] ||
+       versao_maior "$CANDIDATA" "$ULTIMA_VERSAO"; then
+
       ULTIMA_VERSAO="$CANDIDATA"
-    else
-
-      IFS='.' read -r A B C <<< "$CANDIDATA"
-      IFS='.' read -r X Y Z <<< "$ULTIMA_VERSAO"
-
-      if (( 10#$A > 10#$X )) ||
-         (( 10#$A == 10#$X && 10#$B > 10#$Y )) ||
-         (( 10#$A == 10#$X && 10#$B == 10#$Y && 10#$C > 10#$Z )); then
-        ULTIMA_VERSAO="$CANDIDATA"
-      fi
-
     fi
-
   fi
 
 done <<< "$TAGS"
 
-
 # ==============================================
-# 3. DEFINIR A NOVA VERSÃO
+# 3. ESCOLHER NOVA VERSÃO
 # ==============================================
 
 if [[ -z "$ULTIMA_VERSAO" ]]; then
 
-  echo ""
-  echo "Nenhuma tag de versão foi encontrada."
-  echo ""
+  echo "Nenhuma tag encontrada."
 
   while true; do
     perguntar VERSAO \
@@ -146,7 +155,7 @@ if [[ -z "$ULTIMA_VERSAO" ]]; then
       break
     fi
 
-    echo "Versão inválida. Use MAJOR.MINOR.PATCH."
+    echo "Formato inválido. Exemplo: 1.0.0"
   done
 
 else
@@ -154,16 +163,14 @@ else
   IFS='.' read -r MAJOR MINOR PATCH \
     <<< "$ULTIMA_VERSAO"
 
-  PROXIMO_PATCH=$((10#$PATCH + 1))
-
-  SUGESTAO="${MAJOR}.${MINOR}.${PROXIMO_PATCH}"
+  SUGESTAO="${MAJOR}.${MINOR}.$((10#$PATCH + 1))"
 
   echo ""
   echo "Última versão: $ULTIMA_VERSAO"
   echo "Próxima versão sugerida: $SUGESTAO"
-  echo ""
 
   while true; do
+
     perguntar ENTRADA \
       "Nova versão [Enter = $SUGESTAO]: "
 
@@ -174,46 +181,33 @@ else
       continue
     fi
 
-    MAIOR="$(
-      printf '%s\n%s\n' \
-        "$ULTIMA_VERSAO" "$VERSAO" |
-        sort -V |
-        tail -n 1
-    )"
-
-    if [[ "$VERSAO" == "$ULTIMA_VERSAO" ||
-          "$MAIOR" != "$VERSAO" ]]; then
-      echo "A nova versão deve ser maior que $ULTIMA_VERSAO."
+    if ! versao_maior "$VERSAO" "$ULTIMA_VERSAO"; then
+      echo "A versão deve ser maior que $ULTIMA_VERSAO."
       continue
     fi
 
     break
   done
-
 fi
 
-# Mantém o padrão das tags existentes.
-# Para o primeiro lançamento, usa prefixo v.
 TAG="v$VERSAO"
 
-if [[ -n "$ULTIMA_VERSAO" ]]; then
-  if git rev-parse -q --verify \
-    "refs/tags/$ULTIMA_VERSAO" >/dev/null; then
-    TAG="$VERSAO"
-  fi
+# Mantém o padrão de tags sem prefixo v.
+if [[ -n "$ULTIMA_VERSAO" ]] &&
+   git show-ref --verify --quiet \
+     "refs/tags/$ULTIMA_VERSAO"; then
+  TAG="$VERSAO"
 fi
 
-# Evita tags duplicadas com ou sem prefixo.
-if git rev-parse -q --verify \
-  "refs/tags/$VERSAO" >/dev/null ||
-   git rev-parse -q --verify \
-  "refs/tags/v$VERSAO" >/dev/null; then
-  echo "ERRO: Já existe uma tag para $VERSAO."
+if git show-ref --verify --quiet "refs/tags/v$VERSAO" ||
+   git show-ref --verify --quiet "refs/tags/$VERSAO"; then
+
+  echo "ERRO: Tag já existente."
   exit 1
 fi
 
 # ==============================================
-# 4. DEFINIR BUILD DO FLUTTER
+# 4. INCREMENTAR BUILD NUMBER
 # ==============================================
 
 VERSAO_ATUAL="$(
@@ -235,52 +229,89 @@ if [[ "$VERSAO_ATUAL" != *"+"* ||
   BUILD_ATUAL=0
 fi
 
-# Incrementa o build a cada publicação.
 NOVO_BUILD=$((10#$BUILD_ATUAL + 1))
-
 NOVA_VERSAO="${VERSAO}+${NOVO_BUILD}"
 
 # ==============================================
-# 5. SOLICITAR MENSAGEM DO COMMIT
+# 5. ESCOLHER PLATAFORMAS
 # ==============================================
 
 echo ""
-echo "----------------------------------------------"
-echo " Nova tag:       $TAG"
-echo " Versão Flutter: $NOVA_VERSAO"
-echo " Branch:         $BRANCH"
-echo "----------------------------------------------"
+echo "=============================================="
+echo " SELEÇÃO DE BUILDS"
+echo "=============================================="
+
+BUILD_IOS=false
+BUILD_ANDROID=false
+
+if confirmar "Gerar build iOS (.ipa)?"; then
+  BUILD_IOS=true
+fi
+
+if confirmar "Gerar build Android (.aab)?"; then
+  BUILD_ANDROID=true
+fi
+
+if [[ "$BUILD_IOS" == true ||
+      "$BUILD_ANDROID" == true ]]; then
+
+  if ! command -v flutter >/dev/null 2>&1; then
+    echo "ERRO: Flutter não encontrado no PATH."
+    exit 1
+  fi
+fi
+
+if [[ "$BUILD_IOS" == true ]]; then
+
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "ERRO: Build iOS requer macOS."
+    exit 1
+  fi
+
+  if ! command -v xcodebuild >/dev/null 2>&1; then
+    echo "ERRO: Xcode não encontrado."
+    exit 1
+  fi
+fi
+
+# ==============================================
+# 6. SOLICITAR COMMIT
+# ==============================================
+
 echo ""
+echo "=============================================="
+echo " RESUMO DA PUBLICAÇÃO"
+echo "=============================================="
+echo " Versão:  $NOVA_VERSAO"
+echo " Tag:     $TAG"
+echo " Branch:  $BRANCH"
+echo " iOS:     $BUILD_IOS"
+echo " Android: $BUILD_ANDROID"
+echo "=============================================="
 
 while true; do
+
   perguntar MENSAGEM \
-    "Digite a mensagem do commit: "
+    "Mensagem do commit: "
 
   if [[ -n "${MENSAGEM//[[:space:]]/}" ]]; then
     break
   fi
 
-  echo "A mensagem não pode estar vazia."
+  echo "Mensagem obrigatória."
 done
 
 echo ""
 git status --short
-
 echo ""
-perguntar CONFIRMAR \
-  "Confirmar commit, tag e push? [s/N]: "
 
-case "$CONFIRMAR" in
-  s|S|sim|SIM|Sim)
-    ;;
-  *)
-    echo "Operação cancelada."
-    exit 0
-    ;;
-esac
+if ! confirmar "Confirmar operação?"; then
+  echo "Operação cancelada."
+  exit 0
+fi
 
 # ==============================================
-# 6. ATUALIZAR PUBSPEC.YAML
+# 7. ATUALIZAR PUBSPEC
 # ==============================================
 
 echo ""
@@ -293,17 +324,13 @@ sed -i.bak -E \
 rm -f "${PUBSPEC}.bak"
 
 # ==============================================
-# 7. GERAR INFORMAÇÕES DART
+# 8. GERAR ARQUIVO DART
 # ==============================================
-
-echo "Gerando git_version.dart..."
 
 mkdir -p "$(dirname "$DART_VERSION")"
 
 DATA="$(date '+%d/%m/%Y %H:%M:%S')"
 
-# O commit é identificado em tempo de execução.
-# Assim não é gravado um hash anterior ao commit.
 cat > "$DART_VERSION" <<EOF
 // ARQUIVO GERADO AUTOMATICAMENTE.
 // NÃO EDITAR MANUALMENTE.
@@ -321,11 +348,52 @@ class GitVersion {
 EOF
 
 # ==============================================
-# 8. ADICIONAR E CRIAR COMMIT
+# 9. GERAR BUILDS
+# ==============================================
+
+if [[ "$BUILD_IOS" == true ||
+      "$BUILD_ANDROID" == true ]]; then
+
+  echo ""
+  echo "Atualizando dependências Flutter..."
+
+  flutter pub get
+fi
+
+if [[ "$BUILD_IOS" == true ]]; then
+
+  echo ""
+  echo "=============================================="
+  echo " GERANDO BUILD IOS"
+  echo "=============================================="
+
+  flutter build ipa --release
+
+  echo ""
+  echo "Build iOS concluído."
+  echo "Diretório: build/ios/ipa/"
+fi
+
+if [[ "$BUILD_ANDROID" == true ]]; then
+
+  echo ""
+  echo "=============================================="
+  echo " GERANDO BUILD ANDROID"
+  echo "=============================================="
+
+  flutter build appbundle --release
+
+  echo ""
+  echo "Build Android concluído."
+  echo "Diretório: build/app/outputs/bundle/release/"
+fi
+
+# ==============================================
+# 10. GIT ADD E COMMIT
 # ==============================================
 
 echo ""
-echo "Adicionando arquivos ao Git..."
+echo "Adicionando alterações ao Git..."
 
 git add .
 
@@ -341,7 +409,7 @@ git commit -m "$MENSAGEM"
 COMMIT="$(git rev-parse --short HEAD)"
 
 # ==============================================
-# 9. CRIAR TAG ANOTADA
+# 11. CRIAR TAG
 # ==============================================
 
 echo ""
@@ -351,29 +419,28 @@ git tag -a "$TAG" \
   -m "Billhard versão $VERSAO"
 
 # ==============================================
-# 10. ENVIAR BRANCH E TAG AO REMOTO
+# 12. ENVIAR PARA GIT REMOTO
 # ==============================================
 
 echo ""
-echo "Enviando branch e tag para $REMOTE..."
+echo "Enviando commit e tag para $REMOTE..."
 
-# Push atômico: quando suportado pelo servidor,
-# branch e tag são atualizadas juntas.
 if ! git push --atomic "$REMOTE" \
   "HEAD:refs/heads/$BRANCH" \
   "refs/tags/$TAG:refs/tags/$TAG"; then
 
   echo ""
-  echo "ERRO: O push não foi concluído."
-  echo "O commit e a tag continuam salvos localmente."
+  echo "ERRO: Falha no envio ao Git."
+  echo "Commit e tag permanecem salvos localmente."
   echo ""
-  echo "Depois de resolver o problema, execute:"
+  echo "Para tentar novamente:"
   echo "git push --atomic $REMOTE HEAD:refs/heads/$BRANCH refs/tags/$TAG:refs/tags/$TAG"
+
   exit 1
 fi
 
 # ==============================================
-# 11. RESULTADO
+# 13. RESULTADO
 # ==============================================
 
 echo ""
@@ -382,12 +449,20 @@ echo " BILLHARD - PUBLICAÇÃO CONCLUÍDA"
 echo "=============================================="
 echo " Versão:        $VERSAO"
 echo " Build:         $NOVO_BUILD"
-echo " Flutter:       $NOVA_VERSAO"
+echo " Versão Flutter:$NOVA_VERSAO"
 echo " Tag:           $TAG"
 echo " Commit:        $COMMIT"
 echo " Branch:        $BRANCH"
-echo " Remote:        $REMOTE"
 echo "=============================================="
+
+if [[ "$BUILD_IOS" == true ]]; then
+  echo " iOS:     build/ios/ipa/"
+fi
+
+if [[ "$BUILD_ANDROID" == true ]]; then
+  echo " Android: build/app/outputs/bundle/release/"
+fi
+
 echo ""
 echo "Projeto publicado com sucesso!"
 echo ""
