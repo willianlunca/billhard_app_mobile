@@ -38,34 +38,54 @@ if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -r /dev/tty ]]; then
+if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
   echo "ERRO: Terminal interativo necessário."
   exit 1
 fi
 
+# ==============================================
+# FUNÇÕES INTERATIVAS
+# ==============================================
 
 perguntar() {
   local variavel="$1"
   local mensagem="$2"
   local entrada_usuario
 
-  read -r -p "$mensagem" entrada_usuario </dev/tty
+  if ! IFS= read -r -p "$mensagem" entrada_usuario </dev/tty; then
+    echo ""
+    echo "ERRO: Entrada interrompida."
+    exit 1
+  fi
+
   printf -v "$variavel" '%s' "$entrada_usuario"
 }
 
-
+# Resposta obrigatória: Y ou N.
+# Enter e respostas inválidas repetem a pergunta.
 confirmar() {
   local resposta
-  perguntar resposta "$1 [y/N]: "
 
-  case "$resposta" in
-    y|Y|s|S|yes|YES|sim|SIM)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
+  while true; do
+
+    perguntar resposta "$1 [y/n]: "
+
+    case "$resposta" in
+      y|Y)
+        return 0
+        ;;
+      n|N)
+        return 1
+        ;;
+      "")
+        echo "Resposta obrigatória. Digite y ou n."
+        ;;
+      *)
+        echo "Opção inválida: '$resposta'. Digite y ou n."
+        ;;
+    esac
+
+  done
 }
 
 validar_versao() {
@@ -145,9 +165,12 @@ done <<< "$TAGS"
 
 if [[ -z "$ULTIMA_VERSAO" ]]; then
 
+  echo ""
   echo "Nenhuma tag encontrada."
+  echo ""
 
   while true; do
+
     perguntar VERSAO \
       "Digite a primeira versão (ex: 1.0.0): "
 
@@ -156,6 +179,7 @@ if [[ -z "$ULTIMA_VERSAO" ]]; then
     fi
 
     echo "Formato inválido. Exemplo: 1.0.0"
+
   done
 
 else
@@ -168,6 +192,7 @@ else
   echo ""
   echo "Última versão: $ULTIMA_VERSAO"
   echo "Próxima versão sugerida: $SUGESTAO"
+  echo ""
 
   while true; do
 
@@ -187,6 +212,7 @@ else
     fi
 
     break
+
   done
 fi
 
@@ -196,6 +222,7 @@ TAG="v$VERSAO"
 if [[ -n "$ULTIMA_VERSAO" ]] &&
    git show-ref --verify --quiet \
      "refs/tags/$ULTIMA_VERSAO"; then
+
   TAG="$VERSAO"
 fi
 
@@ -226,6 +253,7 @@ BUILD_ATUAL="${VERSAO_ATUAL##*+}"
 
 if [[ "$VERSAO_ATUAL" != *"+"* ||
       ! "$BUILD_ATUAL" =~ ^[0-9]+$ ]]; then
+
   BUILD_ATUAL=0
 fi
 
@@ -240,6 +268,7 @@ echo ""
 echo "=============================================="
 echo " SELEÇÃO DE BUILDS"
 echo "=============================================="
+echo ""
 
 BUILD_IOS=false
 BUILD_ANDROID=false
@@ -288,6 +317,7 @@ echo " Branch:  $BRANCH"
 echo " iOS:     $BUILD_IOS"
 echo " Android: $BUILD_ANDROID"
 echo "=============================================="
+echo ""
 
 while true; do
 
@@ -298,7 +328,8 @@ while true; do
     break
   fi
 
-  echo "Mensagem obrigatória."
+  echo "Mensagem obrigatória. Digite uma descrição."
+
 done
 
 echo ""
@@ -306,7 +337,8 @@ git status --short
 echo ""
 
 if ! confirmar "Confirmar operação?"; then
-  echo "Operação cancelada."
+  echo ""
+  echo "Operação cancelada pelo usuário."
   exit 0
 fi
 
@@ -326,6 +358,8 @@ rm -f "${PUBSPEC}.bak"
 # ==============================================
 # 8. GERAR ARQUIVO DART
 # ==============================================
+
+echo "Gerando git_version.dart..."
 
 mkdir -p "$(dirname "$DART_VERSION")"
 
@@ -447,12 +481,12 @@ echo ""
 echo "=============================================="
 echo " BILLHARD - PUBLICAÇÃO CONCLUÍDA"
 echo "=============================================="
-echo " Versão:        $VERSAO"
-echo " Build:         $NOVO_BUILD"
-echo " Versão Flutter:$NOVA_VERSAO"
-echo " Tag:           $TAG"
-echo " Commit:        $COMMIT"
-echo " Branch:        $BRANCH"
+echo " Versão:         $VERSAO"
+echo " Build:          $NOVO_BUILD"
+echo " Versão Flutter: $NOVA_VERSAO"
+echo " Tag:            $TAG"
+echo " Commit:         $COMMIT"
+echo " Branch:         $BRANCH"
 echo "=============================================="
 
 if [[ "$BUILD_IOS" == true ]]; then
