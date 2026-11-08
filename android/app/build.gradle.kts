@@ -23,7 +23,6 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "br.com.billhard.app.automacoes2026"
 
-    // API exigida para novos aplicativos na Google Play.
     compileSdk = 36
 
     ndkVersion = flutter.ndkVersion
@@ -32,7 +31,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
 
-        // Necessário para bibliotecas que utilizam APIs Java modernas.
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -68,9 +66,17 @@ android {
             // Assinatura oficial para publicação.
             signingConfig = signingConfigs.getByName("release")
 
-            // Mantemos desabilitado até validar regras de ofuscação.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Habilita otimização e ofuscação Java/Kotlin pelo R8.
+            isMinifyEnabled = true
+
+            // Remove recursos Android não utilizados.
+            isShrinkResources = true
+
+            // Regras adicionais para bibliotecas e plugins.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
