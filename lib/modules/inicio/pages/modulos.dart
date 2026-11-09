@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:billhard_app_mobile/colors/colors.dart';
-import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
-import 'package:billhard_app_mobile/utils/responsive.dart';
-import 'package:billhard_app_mobile/pages/conta.dart';
+import 'package:billhard_app_mobile/shared/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/shared/utils/responsive.dart';
+import 'package:billhard_app_mobile/modules/conta/pages/conta.dart';
 
 class Modulos extends StatefulWidget {
   const Modulos({super.key});

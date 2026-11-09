@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/shared/services/pagina_persistente_service.dart';
 
 import 'deck_service.dart';
 

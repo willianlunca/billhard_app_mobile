@@ -1,15 +1,15 @@
 import 'dart:convert';
 
 import 'package:billhard_app_mobile/colors/colors.dart';
-import 'package:billhard_app_mobile/pages/login.dart';
-import 'package:billhard_app_mobile/pages/modulos.dart';
-import 'package:billhard_app_mobile/pages/manutencao_page.dart';
-import 'package:billhard_app_mobile/services/cep_service.dart';
-import 'package:billhard_app_mobile/services/documento_validator.dart';
-import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
-import 'package:billhard_app_mobile/utils/perfil_input_formatters.dart';
-import 'package:billhard_app_mobile/utils/responsive.dart';
-import 'package:billhard_app_mobile/utils/seletor_data_nascimento.dart';
+import 'package:billhard_app_mobile/modules/autenticacao/pages/login.dart';
+import 'package:billhard_app_mobile/modules/inicio/pages/modulos.dart';
+import 'package:billhard_app_mobile/modules/manutencao/pages/manutencao_page.dart';
+import 'package:billhard_app_mobile/modules/conta/services/cep_service.dart';
+import 'package:billhard_app_mobile/modules/conta/services/documento_validator.dart';
+import 'package:billhard_app_mobile/shared/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/modules/conta/utils/perfil_input_formatters.dart';
+import 'package:billhard_app_mobile/shared/utils/responsive.dart';
+import 'package:billhard_app_mobile/modules/conta/utils/seletor_data_nascimento.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';

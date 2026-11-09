@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:billhard_app_mobile/pages/manutencao_page.dart';
-import 'package:billhard_app_mobile/pages/completar_perfil.dart';
-import 'package:billhard_app_mobile/pages/modulos.dart';
-import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/modules/manutencao/pages/manutencao_page.dart';
+import 'package:billhard_app_mobile/modules/conta/pages/completar_perfil.dart';
+import 'package:billhard_app_mobile/modules/inicio/pages/modulos.dart';
+import 'package:billhard_app_mobile/shared/services/pagina_persistente_service.dart';
 
 class PerfilRedirecionamentoService {
   PerfilRedirecionamentoService._();

@@ -3,16 +3,16 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:billhard_app_mobile/colors/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
-import 'package:billhard_app_mobile/pages/modulos.dart';
-import 'package:billhard_app_mobile/pages/equipamentos.dart';
-import 'package:billhard_app_mobile/pages/login.dart';
-import 'package:billhard_app_mobile/pages/conta.dart';
-import 'package:billhard_app_mobile/pages/novo_usuario.dart';
-import 'package:billhard_app_mobile/pages/recupera_senha.dart';
-import 'package:billhard_app_mobile/pages/completar_perfil.dart';
-import 'package:billhard_app_mobile/pages/manutencao_page.dart';
-import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
-import 'package:billhard_app_mobile/pages/manutencao_page.dart';
+import 'package:billhard_app_mobile/modules/inicio/pages/modulos.dart';
+import 'package:billhard_app_mobile/modules/equipamentos/pages/equipamentos.dart';
+import 'package:billhard_app_mobile/modules/autenticacao/pages/login.dart';
+import 'package:billhard_app_mobile/modules/conta/pages/conta.dart';
+import 'package:billhard_app_mobile/modules/autenticacao/pages/novo_usuario.dart';
+import 'package:billhard_app_mobile/modules/autenticacao/pages/recupera_senha.dart';
+import 'package:billhard_app_mobile/modules/conta/pages/completar_perfil.dart';
+import 'package:billhard_app_mobile/modules/manutencao/pages/manutencao_page.dart';
+import 'package:billhard_app_mobile/shared/services/pagina_persistente_service.dart';
+import 'package:billhard_app_mobile/modules/manutencao/pages/manutencao_page.dart';
 import 'package:lottie/lottie.dart';
 
 class AuthCheck extends StatefulWidget {

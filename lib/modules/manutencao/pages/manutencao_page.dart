@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:billhard_app_mobile/pages/conta.dart';
-import '../colors/colors.dart';
+import 'package:billhard_app_mobile/modules/conta/pages/conta.dart';
+import '../../../colors/colors.dart';
 import '../services/deck_service.dart';
 import '../services/manutencao_permissao_service.dart';
 import '../services/nextcloud_config_service.dart';
 import '../services/manutencao_local_service.dart';
 import '../services/manutencao_sync_service.dart';
-import '../utils/responsive.dart';
-import 'package:billhard_app_mobile/services/pagina_persistente_service.dart';
+import '../../../shared/utils/responsive.dart';
+import 'package:billhard_app_mobile/shared/services/pagina_persistente_service.dart';
 
 ThemeData _temaManutencao(BuildContext context) {
   final base = Theme.of(context);
